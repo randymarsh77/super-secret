@@ -56,8 +56,6 @@
     "access": "public"
   },
   "overrides": {
-    "semantic-release": {
-      "@semantic-release/npm": "^13"
-    }
+    "@semantic-release/npm": "$@semantic-release/npm"
   }
 }
