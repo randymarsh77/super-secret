@@ -81,3 +81,5 @@ jobs:
       - run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # provenance only here: npm cannot attest a publish made from a laptop
+          NPM_CONFIG_PROVENANCE: 'true'
