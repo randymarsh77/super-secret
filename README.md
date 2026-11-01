@@ -195,8 +195,19 @@ Releases are cut by [semantic-release](https://semantic-release.gitbook.io/) fro
 minor version, `fix:` the patch, a `BREAKING CHANGE:` footer or `feat!:` the
 major; `docs:`, `ci:`, `chore:`, `refactor:` and `test:` publish nothing. The
 version in `package.json` is a placeholder; the tag, the npm version and the
-GitHub release notes come from the commits. The workflow needs one repository
-secret, `NPM_TOKEN`, a granular npm token allowed to publish this package.
+GitHub release notes come from the commits.
+
+npm authenticates the workflow by [trusted publishing](https://docs.npmjs.com/trusted-publishers)
+(OIDC), so no npm token is stored anywhere. Bootstrap, once:
+
+1. From a laptop signed in to npm (`npm login`) and GitHub (`gh auth login`),
+   cut the first release with the same machinery:
+   `GITHUB_TOKEN=$(gh auth token) npx semantic-release --no-ci`
+2. On npmjs.com → the package → Settings → Trusted publisher: GitHub Actions,
+   repository `randymarsh77/super-secret`, workflow `ci.yml`.
+3. Set the repository variable `NPM_TRUSTED_PUBLISHING` to `true`
+   (`gh variable set NPM_TRUSTED_PUBLISHING -b true`). From then on every
+   release-worthy push to `main` publishes from CI with provenance.
 
 ## Lineage
 

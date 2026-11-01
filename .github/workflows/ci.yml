@@ -3,10 +3,15 @@ name: CI
 # Every push and PR: typecheck, tests, build and a CLI smoke on Node 22 and 24.
 # On main, once that is green, semantic-release reads the conventional
 # commits since the last tag, decides the version (feat → minor, fix → patch,
-# BREAKING CHANGE → major; chore/ci/docs → no release), publishes to npm with
-# provenance and creates the GitHub release with the generated notes.
-# Needs the repository secret NPM_TOKEN (a granular npm token with publish
-# rights on this package).
+# BREAKING CHANGE → major; chore/ci/docs → no release), publishes to npm and
+# creates the GitHub release with the generated notes.
+#
+# npm auth is trusted publishing (OIDC): no token anywhere. npm only trusts a
+# workflow for a package that already exists, and semantic-release pushes the
+# tag before it publishes, so the job is gated on the repository variable
+# NPM_TRUSTED_PUBLISHING=true, set after the one-time bootstrap in README.md
+# ("Releasing"): first release from a signed-in laptop, then the trusted
+# publisher configured on npmjs.com for this repository and this workflow.
 
 on:
   push:
@@ -48,7 +53,7 @@ jobs:
           node "$GITHUB_WORKSPACE/dist/cli.js" status
 
   release:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.NPM_TRUSTED_PUBLISHING == 'true'
     needs: test
     runs-on: ubuntu-latest
     concurrency:
@@ -58,7 +63,7 @@ jobs:
       contents: write      # tags and the GitHub release
       issues: write        # semantic-release comments on released issues
       pull-requests: write # and on released PRs
-      id-token: write      # npm provenance
+      id-token: write      # npm trusted publishing + provenance
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,7 +76,8 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm ci
       - run: npm run build
+      # npm >= 11.5.1 exchanges the Actions OIDC token for a publish token itself
+      - run: npm --version
       - run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
