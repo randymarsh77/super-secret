@@ -1,0 +1,77 @@
+name: CI
+
+# Every push and PR: typecheck, tests, build and a CLI smoke on Node 22 and 24.
+# On main, once that is green, semantic-release reads the conventional
+# commits since the last tag, decides the version (feat → minor, fix → patch,
+# BREAKING CHANGE → major; chore/ci/docs → no release), publishes to npm with
+# provenance and creates the GitHub release with the generated notes.
+# Needs the repository secret NPM_TOKEN (a granular npm token with publish
+# rights on this package).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: CLI smoke (env store, env-file target)
+        run: |
+          set -euo pipefail
+          d=$(mktemp -d); cd "$d"
+          printf 'TOKEN=abc\n' > .env
+          cat > super-secret.json <<'JSON'
+          { "store": { "kind": "env", "file": "store.env" }, "operator": false,
+            "targets": { "local": { "kind": "env-file", "path": "app.env" } },
+            "secrets": [ { "id": "token", "keys": ["TOKEN"], "targets": { "local": true }, "rotator": { "kind": "generated" } } ] }
+          JSON
+          node "$GITHUB_WORKSPACE/dist/cli.js" import --apply
+          node "$GITHUB_WORKSPACE/dist/cli.js" push --apply
+          node "$GITHUB_WORKSPACE/dist/cli.js" rotate --apply </dev/null || true
+          node "$GITHUB_WORKSPACE/dist/cli.js" status
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    permissions:
+      contents: write      # tags and the GitHub release
+      issues: write        # semantic-release comments on released issues
+      pull-requests: write # and on released PRs
+      id-token: write      # npm provenance
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm run build
+      - run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

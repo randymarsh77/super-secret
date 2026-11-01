@@ -1,0 +1,58 @@
+{
+  "name": "super-secret",
+  "version": "0.0.0-development",
+  "description": "Import, push and rotate a project's secrets with 1Password as the store: dry run by default, values never printed, one manifest per repo.",
+  "license": "MIT",
+  "author": "Matt Marsh",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/randymarsh77/super-secret.git"
+  },
+  "homepage": "https://github.com/randymarsh77/super-secret#readme",
+  "bugs": "https://github.com/randymarsh77/super-secret/issues",
+  "keywords": [
+    "secrets",
+    "1password",
+    "rotation",
+    "railway",
+    "cloudflare",
+    "github-actions",
+    "op"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "bin": {
+    "super-secret": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test --experimental-strip-types 'test/**/*.test.ts'",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build",
+    "release": "semantic-release"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "semantic-release": "^24.2.9",
+    "typescript": "^5.9.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}
