@@ -24,7 +24,7 @@
     "node": ">=22.6"
   },
   "bin": {
-    "super-secret": "./dist/cli.js"
+    "super-secret": "dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -54,5 +54,10 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "overrides": {
+    "semantic-release": {
+      "@semantic-release/npm": "^13"
+    }
   }
 }
