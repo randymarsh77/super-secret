@@ -88,7 +88,7 @@ and tokens live in the vault, not in the manifest.
 | `manual` | the operator mints it where `create` says and pastes it (hidden, or on stdin); checked against `pattern` and `probe` | `retire` is queued as a manual step |
 | `stripe-secret-key` | manual roll in the Dashboard, paste; checked against the same account and mode | manual expire |
 | `stripe-webhook-secret` | a twin endpoint at `url`; its secret ships | the old endpoint is deleted |
-| `cloudflare-api-token` | the token rolls itself in place (needs "API Tokens: Edit") | none |
+| `cloudflare-api-token` | the token rolls itself in place; user-owned and account-owned tokens both work (needs "API Tokens: Edit" or "Account API Tokens: Edit"; optional `account`) | none |
 
 Probes (`probe` on `generated` and `manual`): `{ kind: 'http', url, headers, bearer, basic, expect }`,
 or a preset: `railway-account`, `railway-project`, `github-token`, `stripe-key`,

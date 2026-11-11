@@ -98,14 +98,67 @@ export const PRESETS = {
 		const code = r.body?.SUMMARY?.RESPONSE_CODE;
 		return { ok: r.status === 200 && code === 1, detail: `synoptic → HTTP ${r.status}, RESPONSE_CODE ${code ?? '?'}` };
 	},
-	'cloudflare-token': async (token) => {
-		const r = await json<{ result?: { status?: string } }>('https://api.cloudflare.com/client/v4/user/tokens/verify', {
-			headers: bearer(token),
-		});
-		const status = r.body?.result?.status;
-		return { ok: status === 'active', detail: `cloudflare tokens/verify → HTTP ${r.status}, status ${status ?? '?'}` };
-	},
+	'cloudflare-token': async (token) => locateCloudflareToken(token),
 } satisfies Record<string, Preset>;
+
+export const CLOUDFLARE_API = 'https://api.cloudflare.com/client/v4';
+
+export interface CloudflareTokenLocation extends ProbeResult {
+	/** The token's id, when a verify endpoint recognised it. */
+	id?: string;
+	/** Collection the token lives in: `…/user/tokens` or `…/accounts/{id}/tokens`. */
+	base?: string;
+	/** Owning account, for an account-owned token. */
+	account?: string;
+}
+
+/**
+ * Cloudflare has two kinds of API token and each verifies (and rolls) only
+ * at its own endpoint: user-owned at /user/tokens, account-owned at
+ * /accounts/{id}/tokens. The user endpoint answers an account-owned token
+ * with 401 "Invalid API Token", which says nothing about its health, so a
+ * token is dead only when neither endpoint knows it. `account` skips the
+ * discovery call (GET /accounts, which a token can make for its own account).
+ */
+export async function locateCloudflareToken(token: string, account?: string): Promise<CloudflareTokenLocation> {
+	type Verify = { result?: { id?: string; status?: string } };
+	const headers = bearer(token);
+	const user = await json<Verify>(`${CLOUDFLARE_API}/user/tokens/verify`, { headers });
+	const userStatus = user.body?.result?.status;
+	if (userStatus) {
+		return {
+			ok: userStatus === 'active',
+			detail: `cloudflare user token → HTTP ${user.status}, status ${userStatus}`,
+			id: user.body?.result?.id,
+			base: `${CLOUDFLARE_API}/user/tokens`,
+		};
+	}
+	if (user.status === 0) return { ok: false, detail: 'cloudflare tokens/verify → no response' };
+
+	let accounts = account ? [account] : [];
+	let listed = '';
+	if (!account) {
+		const list = await json<{ result?: Array<{ id?: string }> }>(`${CLOUDFLARE_API}/accounts`, { headers });
+		accounts = (list.body?.result ?? []).map((a) => a.id).filter((id): id is string => !!id);
+		listed = `; GET /accounts → HTTP ${list.status}, ${accounts.length} account(s)`;
+	}
+	let last = '';
+	for (const id of accounts) {
+		const r = await json<Verify>(`${CLOUDFLARE_API}/accounts/${id}/tokens/verify`, { headers });
+		const status = r.body?.result?.status;
+		if (status) {
+			return {
+				ok: status === 'active',
+				detail: `cloudflare account token (account ${id}) → HTTP ${r.status}, status ${status}`,
+				id: r.body?.result?.id,
+				base: `${CLOUDFLARE_API}/accounts/${id}/tokens`,
+				account: id,
+			};
+		}
+		last = `; account ${id} tokens/verify → HTTP ${r.status}`;
+	}
+	return { ok: false, detail: `cloudflare user tokens/verify → HTTP ${user.status}${listed}${last}` };
+}
 
 export function basic(user: string, pass = ''): Record<string, string> {
 	return { authorization: `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}` };
