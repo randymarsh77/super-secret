@@ -39,5 +39,5 @@ export function createRotator(spec: RotatorSpec | Rotator, id: string): Rotator 
 }
 
 export { cloudflareApiTokenRotator, generatedRotator, manualRotator, staticRotator, stripeSecretKeyRotator, stripeWebhookSecretRotator };
-export { PRESETS, runProbe, type PresetName, type ProbeSpec } from './probes.ts';
+export { PRESETS, locateCloudflareToken, runProbe, type CloudflareTokenLocation, type PresetName, type ProbeSpec } from './probes.ts';
 export type { CloudflareApiTokenSpec, GeneratedSpec, ManualSpec, StaticSpec, StripeSecretKeySpec, StripeWebhookSecretSpec };
